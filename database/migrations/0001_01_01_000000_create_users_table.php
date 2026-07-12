@@ -23,8 +23,9 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        // email を使わないため、リセットトークンは users.uuid を主キーとして管理する。
         Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
+            $table->uuid('uuid')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
