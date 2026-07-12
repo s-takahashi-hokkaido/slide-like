@@ -1,58 +1,132 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# slide-like
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel 13 アプリケーション。開発環境は [Laradock](https://laradock.io/)（Docker）で構築します。
 
-## About Laravel
+このリポジトリには**アプリ本体（`src/`）のみ**が含まれます。Laradock 環境はリポジトリ外に置くため、下記「セットアップ」の手順で別途用意してください。
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 技術スタック
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| 種別 | 内容 |
+|------|------|
+| フレームワーク | Laravel 13 (PHP 8.3) |
+| Web サーバー | nginx |
+| DB | MySQL 8.4 |
+| 開発環境 | Laradock (Docker / Docker Compose) |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## ディレクトリ構成
 
-## Learning Laravel
+Laradock 同梱の前提で、次の構成を想定しています。
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+slide-like/
+├── laradock/   # Docker 開発環境（このリポジトリには含まれない／別途クローン）
+└── src/        # このリポジトリ（Laravel アプリ本体）→ コンテナ内 /var/www にマウント
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## 前提
 
-## Contributing
+- Docker / Docker Compose v2
+- Git
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## セットアップ（ゼロから再現する手順）
 
-## Code of Conduct
+### 1. リポジトリを配置
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+mkdir -p ~/slide-like
+git clone https://github.com/s-takahashi-hokkaido/slide-like.git ~/slide-like/src
+```
 
-## Security Vulnerabilities
+### 2. Laradock を取得
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+git clone --depth 1 https://github.com/laradock/laradock.git ~/slide-like/laradock
+cd ~/slide-like/laradock
+cp .env.example .env
+```
 
-## License
+### 3. `laradock/.env` を編集
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+以下のキーを変更します（既存行を書き換え）。
+
+```dotenv
+APP_CODE_PATH_HOST=../src
+DATA_PATH_HOST=~/.laradock/slide-like/data
+COMPOSE_PROJECT_NAME=slide-like
+PHP_VERSION=8.3
+```
+
+さらに `laradock/.env` の末尾に MySQL の設定を追記します（`mysql/defaults.env` を上書き）。
+
+```dotenv
+### MySQL (overrides mysql/defaults.env)
+MYSQL_DATABASE=slide_like
+MYSQL_USER=slide_like
+MYSQL_PASSWORD=secret
+MYSQL_ROOT_PASSWORD=root
+MYSQL_PORT=3306
+```
+
+> nginx はデフォルトの `nginx/sites/default.conf` が `localhost` → `/var/www/public` を配信するため、`http://localhost` でそのまま動作します。
+> `slide-like.test` で開きたい場合は `nginx/sites/slide-like.conf` を作成し（`server_name slide-like.test; root /var/www/public;`）、ホストの `hosts` に `127.0.0.1 slide-like.test` を追加します。
+
+### 4. アプリの `.env` を用意
+
+```bash
+cd ~/slide-like/src
+cp .env.example .env
+```
+
+`.env.example` の DB 設定は既にコンテナ向け（`DB_HOST=mysql` ほか）になっています。
+
+### 5. コンテナを起動
+
+```bash
+cd ~/slide-like/laradock
+docker compose up -d nginx mysql   # 初回は php-fpm / nginx / workspace のビルドで数分かかります
+```
+
+### 6. 依存インストール・キー生成・マイグレーション
+
+workspace コンテナ内で実行します。
+
+```bash
+docker compose exec workspace bash
+# --- 以下はコンテナ内 ---
+composer install
+php artisan key:generate
+php artisan migrate
+exit
+```
+
+### 7. 動作確認
+
+- アプリ: http://localhost
+- DB（ホストから）: `127.0.0.1:3306` / user `slide_like` / password `secret`（root は `root`）
+
+## よく使うコマンド
+
+すべて `~/slide-like/laradock` で実行します。
+
+```bash
+# 起動 / 停止 / 状態確認
+docker compose up -d nginx mysql
+docker compose stop
+docker compose ps
+
+# workspace に入って artisan / composer / npm を実行
+docker compose exec workspace bash
+
+# 単発実行の例
+docker compose exec workspace php artisan migrate
+docker compose exec workspace php artisan make:model Slide -m
+
+# フロント（Vite HMR、ポート 5173 を公開済み）
+docker compose exec workspace npm install
+docker compose exec workspace npm run dev
+```
+
+## 補足
+
+- `.env`・`vendor/`・`node_modules/` は Git 管理対象外です。
+- DB 認証情報は開発用のデフォルト値です。本番では必ず変更してください。
